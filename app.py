@@ -4,9 +4,8 @@ import plotly.express as px
 
 st.set_page_config(page_title="GradeMaster Pro", page_icon="🎓", layout="wide")
 
-st.title(" Grades calculater 🎓 ")
+st.title("🎓 GradeMaster Pro - ניהול, ניבוי ומגמות")
 
-# אתחול נתונים בזיכרון זמני
 if 'subjects' not in st.session_state:
     st.session_state.subjects = []
 
@@ -27,42 +26,45 @@ with st.sidebar:
     
     st.divider()
     st.header("💾 שמירה וטעינה")
-    
-    # כפתור הורדה (גיבוי)
     if st.session_state.subjects:
         df_download = pd.DataFrame(st.session_state.subjects)
         csv = df_download.to_csv(index=False).encode('utf-8-sig')
-        st.download_button(
-            label="📥 הורד גיבוי (CSV)",
-            data=csv,
-            file_name='my_grades.csv',
-            mime='text/csv',
-        )
+        st.download_button("📥 הורד גיבוי (CSV)", data=csv, file_name='my_grades.csv', mime='text/csv')
     
-    # העלאת קובץ (טעינה)
     uploaded_file = st.file_uploader("📤 טען גיבוי קיים", type="csv")
     if uploaded_file is not None:
-        load_df = pd.read_csv(uploaded_file)
-        st.session_state.subjects = load_df.to_dict('records')
-        st.success("הנתונים נטענו בהצלחה!")
+        st.session_state.subjects = pd.read_csv(uploaded_file).to_dict('records')
         st.rerun()
 
     if st.button("🗑️ נקה הכל"):
         st.session_state.subjects = []
         st.rerun()
 
-# --- תצוגת נתונים ---
+# --- חישובים והצגת מגמות ---
 if st.session_state.subjects:
     df = pd.DataFrame(st.session_state.subjects)
     
-    total_w = round(df['נ\"ז'].sum(), 1)
-    weighted_avg = round((df['ציון'] * df['נ\"ז']).sum() / total_w, 2)
+    # חישוב ממוצע נוכחי
+    total_w = df['נ\"ז'].sum()
+    current_avg = (df['ציון'] * df['נ\"ז']).sum() / total_w
     
+    # חישוב ממוצע קודם (לצורך החץ)
+    if len(df) > 1:
+        prev_df = df.iloc[:-1]
+        prev_avg = (prev_df['ציון'] * prev_df['נ\"ז']).sum() / prev_df['נ\"ז'].sum()
+        diff = current_avg - prev_avg
+        delta_val = f"{diff:+.2f} ({ (diff/prev_avg)*100 :+.1f}%)"
+    else:
+        delta_val = None
+
+    # הצגת מדדים עם חצים
     col1, col2 = st.columns(2)
-    col1.metric("🎓 ממוצע כולל", f"{weighted_avg:.2f}")
-    col2.metric("📜 סך נ\"ז", f"{total_w}")
+    col1.metric("🎓 ממוצע כולל", f"{current_avg:.2f}", delta=delta_val)
+    col2.metric("📜 סך נ\"ז", f"{total_w:.1f}")
 
     st.divider()
+    
+    # טבלת קורסים
     st.subheader("📋 רשימת הקורסים שלי")
     display_df = df.copy()
     display_df['ציון'] = display_df['ציון'].map(lambda x: f"{x:.2f}")
@@ -85,6 +87,6 @@ if st.session_state.subjects:
     target = c1.number_input("ממוצע יעד:", 60.0, 100.0, 90.0)
     future_w = c2.number_input("נ\"ז של מבחנים קרובים:", 1.0, 100.0, 10.0)
     needed = (target * (total_w + future_w) - (df['ציון'] * df['נ\"ז']).sum()) / future_w
-    st.info(f"כדי להגיע ל-{target:.2f}, עליך להוציא ממוצע של **{needed:.2f}** בקורסים שנותרו.")
+    st.info(f"עליך להוציא ממוצע של **{needed:.2f}** בקורסים שנותרו.")
 else:
-    st.info("הזן קורסים או טען קובץ גיבוי כדי להתחיל.")
+    st.info("הזן קורסים או טען קובץ גיבוי.")
