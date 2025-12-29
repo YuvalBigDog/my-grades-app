@@ -6,21 +6,21 @@ st.set_page_config(page_title="GradeMaster Pro", page_icon="🎓")
 
 st.title("🎓 GradeMaster Pro - ניהול ציונים חכם")
 
-# אתחול רשימת הציונים בזיכרון
 if 'subjects' not in st.session_state:
     st.session_state.subjects = []
 
-# תפריט צדי להוספת מקצועות
 with st.sidebar:
     st.header("הוספת מקצוע חדש")
     name = st.text_input("שם המקצוע")
     grade = st.number_input("ציון", min_value=0, max_value=100, value=90)
-    weight = st.number_input("נקודות זכות / משקל", min_value=1.0, max_value=10.0, value=2.0, step=0.5)
+    weight = st.number_input("נקודות זכות (נ\"ז)", min_value=1.0, max_value=10.0, value=2.0, step=0.5)
+    # הוספת בחירת שנה
+    year = st.selectbox("שנה סטודנטיאלית", ["א'", "ב'", "ג'", "ד'"])
     
     if st.button("הוסף למערכת"):
         if name:
-            st.session_state.subjects.append({"מקצוע": name, "ציון": grade, "משקל": weight})
-            st.success(f"הוספת את {name} בהצלחה!")
+            st.session_state.subjects.append({"שנה": year, "מקצוע": name, "ציון": grade, "משקל": weight})
+            st.success(f"הוספת את {name} לשנה {year}!")
         else:
             st.error("נא להזין שם מקצוע")
 
@@ -28,43 +28,47 @@ with st.sidebar:
         st.session_state.subjects = []
         st.rerun()
 
-# הצגת הנתונים
 if st.session_state.subjects:
     df = pd.DataFrame(st.session_state.subjects)
     
-    col1, col2 = st.columns([2, 1])
+    # הצגת ממוצעים לפי שנה
+    st.subheader("📊 סיכום לפי שנים")
+    for y in df['שנה'].unique():
+        year_df = df[df['שנה'] == y]
+        y_avg = (year_df['ציון'] * year_df['משקל']).sum() / year_df['משקל'].sum()
+        st.write(f"**ממוצע שנה {y}:** {y_avg:.2f}")
+
+    st.divider()
     
+    col1, col2 = st.columns([2, 1])
     with col1:
         st.subheader("פירוט ציונים")
-        st.table(df)
+        st.dataframe(df, use_container_width=True)
         
     with col2:
         total_weight = df['משקל'].sum()
         weighted_avg = (df['ציון'] * df['משקל']).sum() / total_weight
-        st.metric("ממוצע נוכחי", f"{weighted_avg:.2f}")
+        st.metric("ממוצע כולל", f"{weighted_avg:.2f}")
 
-    # גרף התפלגות
-    st.subheader("ניתוח ויזואלי")
-    fig = px.bar(df, x="מקצוע", y="ציון", color="ציון", color_continuous_scale="RdYlGn", range_y=[0, 100])
+    st.subheader("📈 גרף התקדמות")
+    fig = px.scatter(df, x="מקצוע", y="ציון", size="משקל", color="שנה", hover_name="מקצוע", size_max=40)
     st.plotly_chart(fig)
 
-    # --- סימולטור יעד ---
+    # סימולטור יעד
     st.divider()
     st.subheader("🎯 סימולטור יעד")
-    
-    target_avg = st.slider("מה ממוצע היעד שלך?", min_value=int(weighted_avg) if weighted_avg < 100 else 90, max_value=100, value=95)
-    remaining_weight = st.number_input("כמה נקודות זכות נשארו לך?", min_value=1.0, value=5.0)
+    target_avg = st.slider("מה ממוצע היעד הכולל?", min_value=int(weighted_avg) if weighted_avg < 100 else 90, max_value=100, value=95)
+    remaining_weight = st.number_input("כמה נ\"ז נשארו לתואר?", min_value=1.0, value=10.0)
     
     current_sum = (df['ציון'] * df['משקל']).sum()
     total_new_weight = total_weight + remaining_weight
     required_score = (target_avg * total_new_weight - current_sum) / remaining_weight
     
     if required_score > 100:
-        st.warning(f"תצטרך ממוצע של {required_score:.1f} - זה קצת קשה!")
+        st.warning(f"כדי להגיע ל-{target_avg}, תצטרך ממוצע {required_score:.1f}. זה קצת גבוה, אולי נוריד יעד? 😉")
     elif required_score < 0:
-        st.success("אתה כבר מעל היעד!")
+        st.success("אתה כבר מעל היעד! כל ציון שתקבל יהיה בונוס.")
     else:
-        st.info(f"עליך להוציא ממוצע של **{required_score:.1f}** בשאר המקצועות.")
-
+        st.info(f"עליך להוציא ממוצע של **{required_score:.1f}** בשאר התואר כדי להגיע ל-{target_avg}.")
 else:
-    st.info("הזן מקצועות בתפריט הצד כדי להתחיל.")
+    st.info("המערכת מחכה לציונים הראשונים שלך...")
