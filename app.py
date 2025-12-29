@@ -53,18 +53,21 @@ if st.session_state.subjects:
     if len(df) > 1:
         prev_df = df.iloc[:-1] # כל הקורסים חוץ מהאחרון
         prev_avg = (prev_df['ציון'] * prev_df['נ\"ז']).sum() / prev_df['נ\"ז'].sum()
-        diff = current_avg - prev_avg
-        delta_val = f"{diff:+.2f}" # זה מה שיוצר את החץ הירוק/אדום
+        delta_val = current_avg - prev_avg
 
     # תצוגת המדדים למעלה
     st.subheader("📊 מצב אקדמי נוכחי")
     col1, col2, col3 = st.columns(3)
     
-    # המדד עם החץ
-    col1.metric(label="🎓 ממוצע כולל", value=f"{current_avg:.2f}", delta=delta_val)
+    # הצגת הממוצע עם החץ (Delta)
+    if delta_val is not None:
+        col1.metric(label="🎓 ממוצע כולל", value=f"{current_avg:.2f}", delta=f"{delta_val:+.2f}")
+    else:
+        col1.metric(label="🎓 ממוצע כולל", value=f"{current_avg:.2f}")
+        
     col2.metric(label="📜 סך נ\"ז", value=f"{total_w:.1f}")
     
-    # הוספתי מדד נוסף - הציון האחרון שהוזן
+    # הציון האחרון שהוזן
     last_grade = df.iloc[-1]['ציון']
     col3.metric(label="📝 ציון אחרון", value=f"{last_grade:.0f}")
 
@@ -100,4 +103,4 @@ if st.session_state.subjects:
     else:
         st.info(f"כדי להגיע לממוצע {target:.2f}, עליך להוציא ממוצע של **{needed:.2f}** בקורסים שנותרו.")
 else:
-    st.info("הזן לפחות שני קורסים כדי לראות את מגמת השיפור/ירידה (החיצים).")
+    st.info("הזן קורסים בתפריט הצד כדי לראות את הנתונים והמגמות.")
