@@ -2,95 +2,109 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
-# הגדרת כותרת לשונית ועיצוב PILPILONET
-st.set_page_config(page_title="Pilpilonet", page_icon="🎓", layout="wide")
+# הגדרות דף
+st.set_page_config(page_title="Your Grades Calculator", page_icon="🎓", layout="wide")
 
-st.title("🎓 Pilpilonet - ניהול ומגמות")
+st.title("🎓 Your Grades Calculator")
 
+# אתחול הנתונים
 if 'subjects' not in st.session_state:
     st.session_state.subjects = []
 
-# --- תפריט צד ---
+# --- תפריט צד להזנה וגיבוי ---
 with st.sidebar:
-    st.header("➕ הוספת קורס")
-    name = st.text_input("שם הקורס")
-    grade = st.number_input("ציון", 0, 100, 85)
-    weight = st.number_input("נקודות זכות (נ\"ז)", 1.0, 10.0, 2.0, 0.5)
-    year = st.selectbox("שנה:", ["שנה א'", "שנה ב'", "שנה ג'", "שנה ד'"])
+    st.header("➕ Add New Course")
+    name = st.text_input("Course Name")
+    grade = st.number_input("Grade", 0, 100, 85)
+    weight = st.number_input("Credits (נ\"ז)", 1.0, 10.0, 2.0, 0.5)
+    year = st.selectbox("Year:", ["Year A", "Year B", "Year C", "Year D"])
     
-    if st.button("הוסף לרשימה"):
+    if st.button("Add to List"):
         if name:
             st.session_state.subjects.append({
-                "קורס": name, "שנה": year, "ציון": float(grade), "נ\"ז": float(weight)
+                "Course": name, "Year": year, "Grade": float(grade), "Credits": float(weight)
             })
             st.rerun()
     
     st.divider()
-    st.header("💾 שמירה וטעינה")
+    st.header("💾 Save & Load")
     if st.session_state.subjects:
         df_download = pd.DataFrame(st.session_state.subjects)
         csv = df_download.to_csv(index=False).encode('utf-8-sig')
-        st.download_button("📥 הורד גיבוי (CSV)", data=csv, file_name='pilpilonet_grades.csv', mime='text/csv')
+        st.download_button("📥 Download Backup (CSV)", data=csv, file_name='my_grades.csv', mime='text/csv')
     
-    uploaded_file = st.file_uploader("📤 טען גיבוי קיים", type="csv")
+    uploaded_file = st.file_uploader("📤 Upload Backup", type="csv")
     if uploaded_file is not None:
         st.session_state.subjects = pd.read_csv(uploaded_file).to_dict('records')
         st.rerun()
 
-    if st.button("🗑️ נקה הכל"):
+    if st.button("🗑️ Clear All Data"):
         st.session_state.subjects = []
         st.rerun()
 
-# --- חישוב המדדים והחיצים ---
+# --- חישובים ותצוגה ---
 if st.session_state.subjects:
     df = pd.DataFrame(st.session_state.subjects)
     
-    total_w = df['נ\"ז'].sum()
-    current_avg = (df['ציון'] * df['נ\"ז']).sum() / total_w
+    # חישוב ממוצע ומגמה
+    total_w = df['Credits'].sum()
+    current_avg = (df['Grade'] * df['Credits']).sum() / total_w
     
-    # לוגיקה לחיצים (Delta)
     delta_val = None
     if len(df) > 1:
         prev_df = df.iloc[:-1]
-        prev_avg = (prev_df['ציון'] * prev_df['נ\"ז']).sum() / prev_df['נ\"ז'].sum()
+        prev_avg = (prev_df['Grade'] * prev_df['Credits']).sum() / prev_df['Credits'].sum()
         delta_val = current_avg - prev_avg
 
-    st.subheader("📊 מצב אקדמי נוכחי")
+    # תצוגת מחוונים
     col1, col2, col3 = st.columns(3)
-    
-    # הצגת הממוצע עם החץ
-    col1.metric(label="🎓 ממוצע כולל", 
-                value=f"{current_avg:.2f}", 
-                delta=f"{delta_val:+.2f}" if delta_val is not None else None)
-    
-    col2.metric(label="📜 סך נ\"ז", value=f"{total_w:.1f}")
-    col3.metric(label="📝 ציון אחרון", value=f"{df.iloc[-1]['ציון']:.0f}")
+    col1.metric(label="Average", value=f"{current_avg:.2f}", delta=f"{delta_val:+.2f}" if delta_val is not None else None)
+    col2.metric(label="Total Credits", value=f"{total_w:.1f}")
+    col3.metric(label="Last Grade", value=f"{df.iloc[-1]['Grade']:.0f}")
 
     st.divider()
-    
-    # טבלת קורסים (2 ספרות אחרי הנקודה)
-    st.subheader("📋 רשימת הקורסים שלי")
-    display_df = df.copy()
-    display_df['ציון'] = display_df['ציון'].map(lambda x: f"{x:.2f}")
-    st.dataframe(display_df[["קורס", "שנה", "ציון", "נ\"ז"]], use_container_width=True)
 
-    # גרף השוואת שנים
-    st.subheader("📈 השוואה בין שנים")
-    year_stats = df.groupby('שנה').apply(
-        lambda x: (x['ציון'] * x['נ\"ז']).sum() / x['נ\"ז'].sum()
+    # --- פיתצ'ר עריכה ומחיקה יחידנית ---
+    st.subheader("📋 My Courses (Edit or Delete)")
+    
+    # אפשרות 1: עריכה ישירה בטבלה
+    edited_df = st.data_editor(df, use_container_width=True, num_rows="dynamic")
+    
+    # אם המשתמש שינה משהו בטבלה, נעדכן את הזיכרון
+    if not edited_df.equals(df):
+        st.session_state.subjects = edited_df.to_dict('records')
+        st.rerun()
+
+    # אפשרות 2: מחיקת קורס ספציפי דרך תפריט
+    st.write("---")
+    col_del1, col_del2 = st.columns([3, 1])
+    course_to_delete = col_del1.selectbox("Select a course to remove:", df['Course'].unique())
+    if col_del2.button("❌ Remove Course"):
+        st.session_state.subjects = [s for s in st.session_state.subjects if s['Course'] != course_to_delete]
+        st.success(f"Removed {course_to_delete}")
+        st.rerun()
+
+    # גרפים וניבוי
+    st.divider()
+    st.subheader("📈 Yearly Comparison")
+    year_stats = df.groupby('Year').apply(
+        lambda x: (x['Grade'].astype(float) * x['Credits']).sum() / x['Credits'].sum()
     ).reset_index()
-    year_stats.columns = ['שנה', 'ממוצע שנתי']
-    fig = px.bar(year_stats, x='שנה', y='ממוצע שנתי', color='שנה', text_auto='.2f')
-    fig.update_layout(yaxis_range=[0, 105])
+    year_stats.columns = ['Year', 'Average']
+    fig = px.bar(year_stats, x='Year', y='Average', color='Year', text_auto='.2f')
     st.plotly_chart(fig, use_container_width=True)
 
-    # סימולטור ניבוי
     st.divider()
-    st.subheader("🎯 סימולטור ניבוי")
+    st.subheader("🎯 Target Predictor")
     c1, c2 = st.columns(2)
-    target = c1.number_input("ממוצע יעד סופי:", 60.0, 100.0, 90.0)
-    future_w = c2.number_input("נ\"ז שנותרו:", 1.0, 150.0, 10.0)
-    needed = (target * (total_w + future_w) - (df['ציון'] * df['נ\"ז']).sum()) / future_w
-    st.info(f"כדי להגיע ל-{target:.2f}, עליך להוציא ממוצע של **{needed:.2f}** בהמשך.")
+    target = c1.number_input("Target Average:", 60.0, 100.0, 90.0)
+    future_w = c2.number_input("Remaining Credits:", 1.0, 150.0, 10.0)
+    needed = (target * (total_w + future_w) - (df['Grade'].astype(float) * df['Credits']).sum()) / future_w
+    
+    if needed > 100:
+        st.error(f"Required Average: {needed:.2f} (Hard target!)")
+    else:
+        st.info(f"To reach {target:.2f}, you need an average of **{needed:.2f}** in future exams.")
+
 else:
-    st.info("הזן קורסים כדי להתחיל. השם החדש PILPILONET עודכן!")
+    st.info("Your list is empty. Add a course or upload a backup file to start.")
