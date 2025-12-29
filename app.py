@@ -4,7 +4,7 @@ import plotly.express as px
 
 st.set_page_config(page_title="Pilpilonet", page_icon="🎓", layout="wide")
 
-st.title("🎓 GradeMaster Pro - ניהול ומגמות")
+st.title("🎓 pililonet - ניהול ומגמות")
 
 if 'subjects' not in st.session_state:
     st.session_state.subjects = []
@@ -104,4 +104,5 @@ if st.session_state.subjects:
         st.info(f"כדי להגיע לממוצע {target:.2f}, עליך להוציא ממוצע של **{needed:.2f}** בקורסים שנותרו.")
 else:
     st.info("הזן קורסים בתפריט הצד כדי לראות את הנתונים והמגמות.")
+
 
