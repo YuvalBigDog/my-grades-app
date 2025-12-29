@@ -2,10 +2,10 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
-# 1. שינוי כותרת האתר (מה שמופיע בלשונית)
+# כותרת האתר בלשונית
 st.set_page_config(page_title="Your Grades Calculator", page_icon="🎓", layout="wide")
 
-# 2. שינוי הכותרת הראשית באתר
+# כותרת ראשית בדף
 st.title("🎓 Your Grades Calculator")
 
 if 'subjects' not in st.session_state:
@@ -27,68 +27,69 @@ with st.sidebar:
             st.rerun()
 
     st.divider()
-    st.header("💾 Backup")
+    st.header("💾 Backup & Restore")
     if st.session_state.subjects:
         csv = pd.DataFrame(st.session_state.subjects).to_csv(index=False).encode('utf-8-sig')
-        st.download_button("📥 Download CSV", data=csv, file_name='grades.csv')
+        st.download_button("📥 Download Backup (CSV)", data=csv, file_name='grades.csv')
     
-    uploaded_file = st.file_uploader("📤 Upload CSV", type="csv")
+    uploaded_file = st.file_uploader("📤 Upload Backup", type="csv")
     if uploaded_file:
         st.session_state.subjects = pd.read_csv(uploaded_file).to_dict('records')
         st.rerun()
 
-# --- הצגת נתונים ומחיקה ---
+# --- תצוגת נתונים, עריכה ומחיקה ---
 if st.session_state.subjects:
     df = pd.DataFrame(st.session_state.subjects)
     
-    # חישוב ממוצע ומגמה
+    # חישובים
     total_w = df['Credits'].sum()
     current_avg = (df['Grade'] * df['Credits']).sum() / total_w
     
+    # לוגיקה לחיצים (Delta)
     delta_val = None
     if len(df) > 1:
         prev_df = df.iloc[:-1]
         prev_avg = (prev_df['Grade'] * prev_df['Credits']).sum() / prev_df['Credits'].sum()
         delta_val = current_avg - prev_avg
 
-    # מחוונים למעלה
+    # מחוונים עליונים
     c1, c2, c3 = st.columns(3)
-    c1.metric("Average", f"{current_avg:.2f}", delta=f"{delta_val:+.2f}" if delta_val else None)
-    c2.metric("Credits", f"{total_w:.1f}")
+    c1.metric("Average", f"{current_avg:.2f}", delta=f"{delta_val:+.2f}" if delta_val is not None else None)
+    c2.metric("Total Credits", f"{total_w:.1f}")
     c3.metric("Last Grade", f"{df.iloc[-1]['Grade']:.0f}")
 
     st.divider()
 
-    # פיצ'ר המחיקה והעריכה שביקשת
-    st.subheader("📝 Edit or Delete Courses")
+    # --- הפיצ'ר שביקשת: עריכה ומחיקה ---
+    st.subheader("📝 Manage Your Courses")
+    st.info("Tip: You can edit grades directly in the table below!")
     
-    # טבלה שניתן לערוך בה ציונים ישירות
-    edited_df = st.data_editor(df, use_container_width=True, num_rows="dynamic", key="editor")
+    # טבלת עריכה
+    edited_df = st.data_editor(df, use_container_width=True, num_rows="dynamic")
     
     if not edited_df.equals(df):
         st.session_state.subjects = edited_df.to_dict('records')
         st.rerun()
 
-    # מחיקה יחידנית לפי שם
-    st.write("---")
+    # כפתור מחיקה יחידני
     col_sel, col_btn = st.columns([3, 1])
-    to_delete = col_sel.selectbox("Select course to remove:", df['Course'].unique())
-    if col_btn.button("❌ Remove Selected"):
-        st.session_state.subjects = [s for s in st.session_state.subjects if s['Course'] != to_delete]
+    course_to_del = col_sel.selectbox("Select course to remove:", df['Course'].unique())
+    if col_btn.button("❌ Remove Course"):
+        st.session_state.subjects = [s for s in st.session_state.subjects if s['Course'] != course_to_del]
         st.rerun()
 
     # גרף וניבוי
-    st.subheader("📈 Yearly Comparison")
+    st.subheader("📈 Yearly Progress")
     year_stats = df.groupby('Year').apply(lambda x: (x['Grade'] * x['Credits']).sum() / x['Credits'].sum()).reset_index()
     year_stats.columns = ['Year', 'Avg']
     st.plotly_chart(px.bar(year_stats, x='Year', y='Avg', color='Year', text_auto='.2f'))
 
     st.divider()
     st.subheader("🎯 Target Predictor")
-    t_avg = st.slider("Target:", 60.0, 100.0, 90.0)
-    f_w = st.number_input("Future Credits:", 1.0, 100.0, 10.0)
+    t_avg = st.slider("Your Goal Average:", 60.0, 100.0, 90.0)
+    f_w = st.number_input("Credits Left (Future):", 1.0, 100.0, 10.0)
     needed = (t_avg * (total_w + f_w) - (df['Grade'] * df['Credits']).sum()) / f_w
-    st.info(f"You need an average of **{needed:.2f}** to reach your target.")
+    st.info(f"To reach {t_avg:.2f}, you need an average of **{needed:.2f}** in your future exams.")
 
 else:
-    st.info("No courses yet. Add one from the sidebar!")
+    st.info("Your list is empty. Add your first course in the sidebar!")
