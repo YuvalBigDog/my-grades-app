@@ -16,7 +16,7 @@ with st.sidebar:
     st.header("➕ Add Course")
     name = st.text_input("Course Name")
     grade = st.number_input("Grade", 0, 100, 85)
-    weight = st.number_input("Credits", 1.0, 10.0, 2.0, 0.5)
+    weight = st.number_input("Credits (נ\"ז)", 1.0, 10.0, 2.0, 0.5)
     year = st.selectbox("Year:", ["Year A", "Year B", "Year C", "Year D"])
     
     if st.button("Add to List"):
@@ -60,7 +60,7 @@ if st.session_state.subjects:
 
     st.divider()
 
-    # --- הפיצ'ר שביקשת: עריכה ומחיקה ---
+    # פיצ'ר המחיקה והעריכה שביקשת
     st.subheader("📝 Manage Your Courses")
     st.info("Tip: You can edit grades directly in the table below!")
     
