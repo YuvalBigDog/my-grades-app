@@ -2,12 +2,11 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
-# הגדרות דף רחב
+# הגדרות דף
 st.set_page_config(page_title="GradeMaster Pro", page_icon="🎓", layout="wide")
 
 st.title("🎓 GradeMaster Pro - ניהול אקדמי מלא")
 
-# אתחול נתונים
 if 'subjects' not in st.session_state:
     st.session_state.subjects = []
 
@@ -32,7 +31,7 @@ with st.sidebar:
             st.error("נא להזין שם קורס")
 
     st.divider()
-    if st.button("🗑️ איפוס כל הנתונים"):
+    if st.button("🗑️ איפוס נתונים"):
         st.session_state.subjects = []
         st.rerun()
 
@@ -40,55 +39,58 @@ with st.sidebar:
 if st.session_state.subjects:
     df = pd.DataFrame(st.session_state.subjects)
     
-    # חישובים כלליים
+    # חישובים
     total_w = df['משקל'].sum()
     total_avg = (df['ציון'] * df['משקל']).sum() / total_w
     
-    # שורת מדדים עליונה
-    m1, m2 = st.columns(2)
-    m1.metric("🎓 ממוצע תואר כולל", f"{total_avg:.2f}")
-    m2.metric("📜 סך נ\"ז שנצברו", f"{total_w:.1f}")
+    # שורת מדדים
+    col_m1, col_m2 = st.columns(2)
+    col_m1.metric("🎓 ממוצע תואר כולל", f"{total_avg:.2f}")
+    col_m2.metric("📜 סך נ\"ז שנצברו", f"{total_w:.1f}")
 
     st.divider()
 
-    # טבלת פירוט הקורסים (מה שביקשת להחזיר)
+    # 1. טבלת קורסים מפורטת (מה שביקשת להחזיר למרכז)
     st.subheader("📋 רשימת הקורסים המלאה")
-    st.dataframe(df, use_container_width=True)
+    # עיגול ציונים בטבלה
+    df_styled = df.copy()
+    df_styled['ציון'] = df_styled['ציון'].map('{:,.2f}'.format)
+    df_styled['משקל'] = df_styled['משקל'].map('{:,.1f}'.format)
+    st.dataframe(df_styled, use_container_width=True)
 
     st.divider()
 
-    # גרף השוואה בין שנים
+    # 2. השוואת שנים
     st.subheader("📊 השוואת ממוצעים בין השנים")
     year_stats = df.groupby('שנה').apply(
         lambda x: (x['ציון'] * x['משקל']).sum() / x['משקל'].sum()
     ).reset_index()
     year_stats.columns = ['שנה', 'ממוצע שנתי']
-    year_stats['ממוצע שנתי'] = year_stats['ממוצע שנתי'].round(2)
     
     fig = px.bar(year_stats, x='שנה', y='ממוצע שנתי', color='שנה', 
-                 text_auto='.2f', title="התקדמות הממוצע לפי שנה")
+                 text_auto='.2f', title="איך הממוצע שלך משתנה?")
     fig.update_layout(yaxis_range=[0, 105])
     st.plotly_chart(fig, use_container_width=True)
 
-    # --- סימולטור יעד (חזר לבקשתך!) ---
+    # 3. מחשבון ניבוי ציון (סימולטור יעד)
     st.divider()
-    st.subheader("🎯 סימולטור יעד: מה הציון הבא שלי?")
+    st.subheader("🎯 סימולטור ניבוי: מה הציון הבא שלי?")
     
-    s1, s2 = st.columns(2)
-    with s1:
+    col_s1, col_s2 = st.columns(2)
+    with col_s1:
         target = st.slider("לאיזה ממוצע סופי אתה שואף?", 60, 100, 90)
-    with s2:
-        rem_w = st.number_input("כמה נ\"ז נותרו לך לסיום התואר?", 1.0, 160.0, 20.0)
+    with col_s2:
+        rem_w = st.number_input("נ\"ז של המבחנים הקרובים/שנותרו:", 1.0, 160.0, 10.0)
     
     curr_sum = (df['ציון'] * df['משקל']).sum()
     needed = (target * (total_w + rem_w) - curr_sum) / rem_w
     
     if needed > 100:
-        st.warning(f"כדי להגיע ל-{target}, תצטרך ממוצע של {needed:.2f}. זה ידרוש פוש רציני! 💪")
+        st.warning(f"כדי להגיע ל-{target}, תצטרך ממוצע של {needed:.2f}. זה דורש פוש רציני!")
     elif needed < 0:
-        st.success(f"אתה כבר מעל היעד! הממוצע שלך בטוח מעל {target}.")
+        st.success(f"אתה כבר מעל היעד! הממוצע שלך יישאר מעל {target} גם עם ציונים נמוכים.")
     else:
-        st.info(f"כדי להגיע ליעד של {target}, עליך להוציא ממוצע של **{needed:.2f}** בקורסים שנותרו.")
+        st.info(f"כדי להגיע לממוצע {target}, עליך להוציא ממוצע של **{needed:.2f}** במבחנים הקרובים.")
 
 else:
-    st.info("GradeMaster Pro מוכן. הוסף את הקורס הראשון שלך בתפריט הצד!")
+    st.info("GradeMaster Pro מוכן. הוסף קורס בתפריט הצד כדי להתחיל!")
